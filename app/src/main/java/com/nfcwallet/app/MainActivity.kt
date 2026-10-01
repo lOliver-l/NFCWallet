@@ -6,15 +6,21 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.*
+import androidx.lifecycle.ViewModelProvider
+import com.nfcwallet.app.data.local.NfcDatabase
+import com.nfcwallet.app.data.repository.NfcCardRepository
 import com.nfcwallet.app.nfc.reader.NfcReader
 import com.nfcwallet.app.ui.NfcUiState
-import com.nfcwallet.app.ui.home.HomeScreen
+import com.nfcwallet.app.ui.home.MainScreen
 import com.nfcwallet.app.ui.theme.NFCWalletTheme
+import com.nfcwallet.app.viewmodel.NfcCardViewModel
+import com.nfcwallet.app.viewmodel.NfcCardViewModelFactory
 
 class MainActivity : ComponentActivity() {
 
     private var nfcAdapter: NfcAdapter? = null
     private lateinit var nfcReader: NfcReader
+    private lateinit var viewModel: NfcCardViewModel
     
     // Mutable state to drive the Compose UI
     private var nfcUiState by mutableStateOf<NfcUiState>(NfcUiState.Checking)
@@ -23,6 +29,11 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         
+        // Safe initialization of Database, Repository and ViewModel inside onCreate
+        val database = NfcDatabase.getDatabase(applicationContext)
+        val repository = NfcCardRepository(database.nfcCardDao())
+        viewModel = ViewModelProvider(this, NfcCardViewModelFactory(repository))[NfcCardViewModel::class.java]
+
         nfcAdapter = NfcAdapter.getDefaultAdapter(this)
         
         // Initialize the NFC Reader with a callback to update UI
@@ -34,7 +45,7 @@ class MainActivity : ComponentActivity() {
         
         setContent {
             NFCWalletTheme {
-                HomeScreen(uiState = nfcUiState)
+                MainScreen(uiState = nfcUiState, viewModel = viewModel)
             }
         }
     }

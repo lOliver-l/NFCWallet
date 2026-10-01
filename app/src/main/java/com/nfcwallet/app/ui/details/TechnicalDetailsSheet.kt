@@ -3,7 +3,7 @@ package com.nfcwallet.app.ui.details
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -13,8 +13,11 @@ import com.nfcwallet.app.nfc.model.NfcCardInfo
 @Composable
 fun TechnicalDetailsSheet(
     cardInfo: NfcCardInfo,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    onDelete: (() -> Unit)? = null
 ) {
+    var showDeleteConfirm by remember { mutableStateOf(false) }
+
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         containerColor = MaterialTheme.colorScheme.surface,
@@ -24,7 +27,7 @@ fun TechnicalDetailsSheet(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 24.dp)
-                .padding(bottom = 32.dp) // Extra padding for navigation bar
+                .padding(bottom = 32.dp)
         ) {
             item {
                 Text(
@@ -55,7 +58,45 @@ fun TechnicalDetailsSheet(
                 item { DetailRow("Sector count", cardInfo.sectorCount.toString()) }
                 item { DetailRow("Block count", cardInfo.blockCount.toString()) }
             }
+
+            if (onDelete != null) {
+                item {
+                    Spacer(modifier = Modifier.height(24.dp))
+                    OutlinedButton(
+                        onClick = { showDeleteConfirm = true },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                    ) {
+                        Text("Delete Card")
+                    }
+                }
+            }
         }
+    }
+    
+    if (showDeleteConfirm && onDelete != null) {
+        AlertDialog(
+            onDismissRequest = { showDeleteConfirm = false },
+            title = { Text("Delete Card") },
+            text = { Text("Are you sure you want to delete this saved card?") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        onDelete()
+                        showDeleteConfirm = false
+                        onDismiss()
+                    },
+                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                ) {
+                    Text("Delete")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteConfirm = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
     }
 }
 

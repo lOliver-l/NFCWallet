@@ -1,31 +1,75 @@
 package com.nfcwallet.app.ui.home
 
+import android.widget.Toast
 import androidx.compose.foundation.layout.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.List
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.nfcwallet.app.ui.NfcUiState
 import com.nfcwallet.app.ui.components.ScanningState
 import com.nfcwallet.app.ui.components.WalletCard
 import com.nfcwallet.app.ui.details.TechnicalDetailsSheet
+import com.nfcwallet.app.viewmodel.NfcCardViewModel
+
+@Composable
+fun MainScreen(
+    uiState: NfcUiState, 
+    viewModel: NfcCardViewModel
+) {
+    var selectedTab by remember { mutableIntStateOf(0) }
+    
+    val context = LocalContext.current
+    LaunchedEffect(viewModel) {
+        viewModel.events.collect { message ->
+            Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    Scaffold(
+        bottomBar = {
+            NavigationBar {
+                NavigationBarItem(
+                    icon = { Icon(Icons.Default.Home, contentDescription = "Scan") },
+                    label = { Text("Scan") },
+                    selected = selectedTab == 0,
+                    onClick = { selectedTab = 0 }
+                )
+                NavigationBarItem(
+                    icon = { Icon(Icons.Default.List, contentDescription = "My Cards") },
+                    label = { Text("My Cards") },
+                    selected = selectedTab == 1,
+                    onClick = { selectedTab = 1 }
+                )
+            }
+        }
+    ) { innerPadding ->
+        Box(modifier = Modifier.padding(innerPadding)) {
+            if (selectedTab == 0) {
+                ScanTab(uiState = uiState, viewModel = viewModel)
+            } else {
+                MyCardsTab(viewModel = viewModel)
+            }
+        }
+    }
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HomeScreen(uiState: NfcUiState) {
+fun ScanTab(uiState: NfcUiState, viewModel: NfcCardViewModel) {
     var showTechnicalDetails by remember { mutableStateOf(false) }
+    var showSaveDialog by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
-                title = {
-                    Text(
-                        text = "NFC Wallet",
-                        fontWeight = FontWeight.Bold
-                    )
-                },
+                title = { Text(text = "NFC Wallet", fontWeight = FontWeight.Bold) },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
                     containerColor = MaterialTheme.colorScheme.background,
                     titleContentColor = MaterialTheme.colorScheme.onBackground
@@ -39,18 +83,10 @@ fun HomeScreen(uiState: NfcUiState) {
                 .padding(innerPadding)
         ) {
             when (uiState) {
-                is NfcUiState.Checking -> {
-                    LoadingState("Checking NFC status...")
-                }
-                is NfcUiState.NotSupported -> {
-                    ErrorState("NFC is not supported on this device.")
-                }
-                is NfcUiState.Disabled -> {
-                    ErrorState("NFC is disabled. Please enable it in your phone settings.")
-                }
-                is NfcUiState.Waiting -> {
-                    ScanningState()
-                }
+                is NfcUiState.Checking -> LoadingState("Checking NFC status...")
+                is NfcUiState.NotSupported -> ErrorState("NFC is not supported on this device.")
+                is NfcUiState.Disabled -> ErrorState("NFC is disabled. Please enable it in your phone settings.")
+                is NfcUiState.Waiting -> ScanningState()
                 is NfcUiState.TagDetected -> {
                     Column(
                         modifier = Modifier
@@ -62,7 +98,6 @@ fun HomeScreen(uiState: NfcUiState) {
                         
                         Spacer(modifier = Modifier.height(32.dp))
 
-                        // Basic info below the card
                         InfoChipList(
                             technology = uiState.cardInfo.techList.firstOrNull() ?: "Unknown",
                             size = "${uiState.cardInfo.size}B",
@@ -71,17 +106,29 @@ fun HomeScreen(uiState: NfcUiState) {
                         )
 
                         Spacer(modifier = Modifier.weight(1f))
-
+                        
                         Button(
+                            onClick = { showSaveDialog = true },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(56.dp),
+                            shape = MaterialTheme.shapes.extraLarge
+                        ) {
+                            Text(
+                                text = "Save card",
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        OutlinedButton(
                             onClick = { showTechnicalDetails = true },
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(56.dp),
-                            shape = MaterialTheme.shapes.extraLarge,
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                                contentColor = MaterialTheme.colorScheme.onSecondaryContainer
-                            )
+                            shape = MaterialTheme.shapes.extraLarge
                         ) {
                             Text(
                                 text = "Technical details",
@@ -99,6 +146,39 @@ fun HomeScreen(uiState: NfcUiState) {
                             onDismiss = { showTechnicalDetails = false }
                         )
                     }
+                    
+                    if (showSaveDialog) {
+                        var cardName by remember { mutableStateOf("") }
+                        AlertDialog(
+                            onDismissRequest = { showSaveDialog = false },
+                            title = { Text("Save Card") },
+                            text = {
+                                OutlinedTextField(
+                                    value = cardName,
+                                    onValueChange = { cardName = it },
+                                    label = { Text("Card Name (e.g. BLOC)") },
+                                    singleLine = true
+                                )
+                            },
+                            confirmButton = {
+                                TextButton(
+                                    onClick = {
+                                        if (cardName.isNotBlank()) {
+                                            viewModel.saveCard(uiState.cardInfo, cardName)
+                                            showSaveDialog = false
+                                        }
+                                    }
+                                ) {
+                                    Text("Save")
+                                }
+                            },
+                            dismissButton = {
+                                TextButton(onClick = { showSaveDialog = false }) {
+                                    Text("Cancel")
+                                }
+                            }
+                        )
+                    }
                 }
             }
         }
@@ -106,7 +186,7 @@ fun HomeScreen(uiState: NfcUiState) {
 }
 
 @Composable
-private fun LoadingState(message: String) {
+fun LoadingState(message: String) {
     Column(
         modifier = Modifier.fillMaxSize(),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -119,7 +199,7 @@ private fun LoadingState(message: String) {
 }
 
 @Composable
-private fun ErrorState(message: String) {
+fun ErrorState(message: String) {
     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Text(
             text = message,
@@ -131,7 +211,7 @@ private fun ErrorState(message: String) {
 }
 
 @Composable
-private fun InfoChipList(technology: String, size: String, sectors: String, blocks: String) {
+fun InfoChipList(technology: String, size: String, sectors: String, blocks: String) {
     Column(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(16.dp)
@@ -154,7 +234,7 @@ private fun InfoChipList(technology: String, size: String, sectors: String, bloc
 }
 
 @Composable
-private fun InfoItem(label: String, value: String) {
+fun InfoItem(label: String, value: String) {
     Column {
         Text(
             text = label,
