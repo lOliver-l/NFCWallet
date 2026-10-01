@@ -1,9 +1,6 @@
 package com.nfcwallet.app
 
 import android.nfc.NfcAdapter
-import android.nfc.Tag
-import android.nfc.tech.MifareClassic
-import android.nfc.tech.NfcA
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -16,6 +13,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.nfcwallet.app.nfc.model.NfcCardInfo
+import com.nfcwallet.app.nfc.reader.NfcReader
 import com.nfcwallet.app.ui.theme.NFCWalletTheme
 
 // State to hold NFC scanning status and data
@@ -24,23 +23,14 @@ sealed class NfcUiState {
     object NotSupported : NfcUiState()
     object Disabled : NfcUiState()
     object Waiting : NfcUiState()
-    data class TagDetected(
-        val uid: String,
-        val techList: List<String>,
-        val hasNfcA: Boolean,
-        val atqa: String,
-        val sak: String,
-        val hasMifareClassic: Boolean,
-        val mifareType: String,
-        val size: Int,
-        val sectorCount: Int,
-        val blockCount: Int
-    ) : NfcUiState()
+    data class TagDetected(val cardInfo: NfcCardInfo) : NfcUiState()
 }
 
-class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
+class MainActivity : ComponentActivity() {
 
     private var nfcAdapter: NfcAdapter? = null
+    private lateinit var nfcReader: NfcReader
+    
     // Mutable state to drive the Compose UI
     private var nfcUiState by mutableStateOf<NfcUiState>(NfcUiState.Checking)
 
@@ -49,6 +39,13 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
         enableEdgeToEdge()
         
         nfcAdapter = NfcAdapter.getDefaultAdapter(this)
+        
+        // Initialize the NFC Reader with a callback to update UI
+        nfcReader = NfcReader { cardInfo ->
+            runOnUiThread {
+                nfcUiState = NfcUiState.TagDetected(cardInfo)
+            }
+        }
         
         setContent {
             NFCWalletTheme {
@@ -70,6 +67,7 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
             nfcUiState = NfcUiState.Disabled
         } else {
             nfcUiState = NfcUiState.Waiting
+            
             // Enable NFC Reader Mode to detect tags while app is active
             val options = Bundle()
             options.putInt(NfcAdapter.EXTRA_READER_PRESENCE_CHECK_DELAY, 250)
@@ -78,7 +76,8 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
                         NfcAdapter.FLAG_READER_NFC_F or 
                         NfcAdapter.FLAG_READER_NFC_V or 
                         NfcAdapter.FLAG_READER_NFC_BARCODE
-            nfcAdapter?.enableReaderMode(this, this, flags, options)
+            
+            nfcAdapter?.enableReaderMode(this, nfcReader, flags, options)
         }
     }
 
@@ -86,49 +85,6 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
         super.onPause()
         // Disable Reader Mode when app is in background
         nfcAdapter?.disableReaderMode(this)
-    }
-
-    // Called on a background thread when a tag is detected
-    override fun onTagDiscovered(tag: Tag?) {
-        if (tag == null) return
-
-        val uid = bytesToHex(tag.id)
-        val techList = tag.techList.map { it.substringAfterLast('.') }
-        
-        val nfcA = NfcA.get(tag)
-        val mifare = MifareClassic.get(tag)
-
-        val newState = NfcUiState.TagDetected(
-            uid = uid,
-            techList = techList,
-            hasNfcA = nfcA != null,
-            atqa = nfcA?.atqa?.let { bytesToHex(it) } ?: "N/A",
-            sak = nfcA?.sak?.let { "%02X".format(it) } ?: "N/A",
-            hasMifareClassic = mifare != null,
-            mifareType = mifare?.type?.let { getMifareTypeString(it) } ?: "N/A",
-            size = mifare?.size ?: 0,
-            sectorCount = mifare?.sectorCount ?: 0,
-            blockCount = mifare?.blockCount ?: 0
-        )
-
-        // Update UI state on main thread
-        runOnUiThread {
-            nfcUiState = newState
-        }
-    }
-
-    private fun bytesToHex(bytes: ByteArray): String {
-        return bytes.joinToString(":") { "%02X".format(it) }
-    }
-
-    private fun getMifareTypeString(type: Int): String {
-        return when (type) {
-            MifareClassic.TYPE_CLASSIC -> "Classic"
-            MifareClassic.TYPE_PLUS -> "Plus"
-            MifareClassic.TYPE_PRO -> "Pro"
-            MifareClassic.TYPE_UNKNOWN -> "Unknown"
-            else -> "Unknown"
-        }
     }
 }
 
@@ -174,14 +130,14 @@ fun NfcScreen(uiState: NfcUiState, modifier: Modifier = Modifier) {
                 )
             }
             is NfcUiState.TagDetected -> {
-                TagInfoCard(uiState)
+                TagInfoCard(uiState.cardInfo)
             }
         }
     }
 }
 
 @Composable
-fun TagInfoCard(data: NfcUiState.TagDetected) {
+fun TagInfoCard(cardInfo: NfcCardInfo) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
@@ -195,19 +151,19 @@ fun TagInfoCard(data: NfcUiState.TagDetected) {
                 Text("Tag Detected", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                 HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
             }
-            item { InfoRow("UID", data.uid) }
-            item { InfoRow("Technologies", data.techList.joinToString(", ")) }
-            item { InfoRow("NfcA Available", data.hasNfcA.toString()) }
-            if (data.hasNfcA) {
-                item { InfoRow("ATQA", data.atqa) }
-                item { InfoRow("SAK", data.sak) }
+            item { InfoRow("UID", cardInfo.uid) }
+            item { InfoRow("Technologies", cardInfo.techList.joinToString(", ")) }
+            item { InfoRow("NfcA Available", cardInfo.hasNfcA.toString()) }
+            if (cardInfo.hasNfcA) {
+                item { InfoRow("ATQA", cardInfo.atqa) }
+                item { InfoRow("SAK", cardInfo.sak) }
             }
-            item { InfoRow("MifareClassic", data.hasMifareClassic.toString()) }
-            if (data.hasMifareClassic) {
-                item { InfoRow("MIFARE Type", data.mifareType) }
-                item { InfoRow("Size", "${data.size} bytes") }
-                item { InfoRow("Sectors", data.sectorCount.toString()) }
-                item { InfoRow("Blocks", data.blockCount.toString()) }
+            item { InfoRow("MifareClassic", cardInfo.hasMifareClassic.toString()) }
+            if (cardInfo.hasMifareClassic) {
+                item { InfoRow("MIFARE Type", cardInfo.mifareType) }
+                item { InfoRow("Size", "${cardInfo.size} bytes") }
+                item { InfoRow("Sectors", cardInfo.sectorCount.toString()) }
+                item { InfoRow("Blocks", cardInfo.blockCount.toString()) }
             }
         }
     }
