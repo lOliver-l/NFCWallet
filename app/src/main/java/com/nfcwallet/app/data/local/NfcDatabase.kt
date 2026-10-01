@@ -5,7 +5,7 @@ import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 
-@Database(entities = [NfcCardEntity::class], version = 1, exportSchema = false)
+@Database(entities = [NfcCardEntity::class], version = 2, exportSchema = false)
 abstract class NfcDatabase : RoomDatabase() {
 
     abstract fun nfcCardDao(): NfcCardDao
@@ -20,7 +20,9 @@ abstract class NfcDatabase : RoomDatabase() {
                     context.applicationContext,
                     NfcDatabase::class.java,
                     "nfc_wallet_db"
-                ).build()
+                )
+                    .fallbackToDestructiveMigration()
+                    .build()
                 INSTANCE = instance
                 instance
             }

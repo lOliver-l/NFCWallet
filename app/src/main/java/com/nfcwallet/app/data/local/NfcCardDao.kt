@@ -12,6 +12,9 @@ interface NfcCardDao {
     @Query("SELECT * FROM nfc_cards ORDER BY createdAt DESC")
     fun getAllCards(): Flow<List<NfcCardEntity>>
 
+    @Query("SELECT * FROM nfc_cards ORDER BY createdAt DESC")
+    fun getAllCardsSync(): List<NfcCardEntity>
+
     @Query("SELECT * FROM nfc_cards WHERE uid = :uid LIMIT 1")
     fun getCardByUid(uid: String): NfcCardEntity?
 
