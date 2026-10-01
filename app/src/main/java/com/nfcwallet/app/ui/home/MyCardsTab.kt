@@ -19,7 +19,11 @@ import com.nfcwallet.app.viewmodel.NfcCardViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MyCardsTab(viewModel: NfcCardViewModel) {
+fun MyCardsTab(
+    viewModel: NfcCardViewModel,
+    isHideSensitiveInfo: Boolean,
+    onRequestAuth: (String, () -> Unit) -> Unit
+) {
     val savedCards by viewModel.savedCards.collectAsStateWithLifecycle()
     var selectedCard by remember { mutableStateOf<NfcCardEntity?>(null) }
 
@@ -73,7 +77,9 @@ fun MyCardsTab(viewModel: NfcCardViewModel) {
             selectedCard?.let { card ->
                 TechnicalDetailsSheet(
                     cardInfo = card.toInfo(),
+                    isHideSensitiveInfo = isHideSensitiveInfo,
                     onDismiss = { selectedCard = null },
+                    onRequestAuth = onRequestAuth,
                     onDelete = {
                         viewModel.deleteCard(card)
                         selectedCard = null

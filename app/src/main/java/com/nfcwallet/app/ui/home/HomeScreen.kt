@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.List
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -12,19 +13,24 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.nfcwallet.app.security.SecurityPreferences
 import com.nfcwallet.app.ui.NfcUiState
 import com.nfcwallet.app.ui.components.ScanningState
 import com.nfcwallet.app.ui.components.WalletCard
 import com.nfcwallet.app.ui.details.TechnicalDetailsSheet
+import com.nfcwallet.app.ui.settings.SecuritySettingsTab
 import com.nfcwallet.app.viewmodel.NfcCardViewModel
 
 @Composable
 fun MainScreen(
-    uiState: NfcUiState, 
-    viewModel: NfcCardViewModel
+    uiState: NfcUiState,
+    viewModel: NfcCardViewModel,
+    securityPreferences: SecurityPreferences,
+    biometricStatusMessage: String,
+    onRequestAuth: (String, () -> Unit) -> Unit
 ) {
     var selectedTab by remember { mutableIntStateOf(0) }
-    
+
     val context = LocalContext.current
     LaunchedEffect(viewModel) {
         viewModel.events.collect { message ->
@@ -47,14 +53,37 @@ fun MainScreen(
                     selected = selectedTab == 1,
                     onClick = { selectedTab = 1 }
                 )
+                NavigationBarItem(
+                    icon = { Icon(Icons.Default.Settings, contentDescription = "Settings") },
+                    label = { Text("Settings") },
+                    selected = selectedTab == 2,
+                    onClick = { selectedTab = 2 }
+                )
             }
         }
     ) { innerPadding ->
         Box(modifier = Modifier.padding(innerPadding)) {
-            if (selectedTab == 0) {
-                ScanTab(uiState = uiState, viewModel = viewModel)
-            } else {
-                MyCardsTab(viewModel = viewModel)
+            when (selectedTab) {
+                0 -> ScanTab(
+                    uiState = uiState,
+                    viewModel = viewModel,
+                    isHideSensitiveInfo = securityPreferences.isHideSensitiveInfo,
+                    onRequestAuth = onRequestAuth
+                )
+                1 -> MyCardsTab(
+                    viewModel = viewModel,
+                    isHideSensitiveInfo = securityPreferences.isHideSensitiveInfo,
+                    onRequestAuth = onRequestAuth
+                )
+                2 -> SecuritySettingsTab(
+                    securityPreferences = securityPreferences,
+                    biometricStatusMessage = biometricStatusMessage,
+                    onRequestAuthForToggle = { _, onResult ->
+                        onRequestAuth("Authenticate to enable app lock") {
+                            onResult(true)
+                        }
+                    }
+                )
             }
         }
     }
@@ -62,7 +91,12 @@ fun MainScreen(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ScanTab(uiState: NfcUiState, viewModel: NfcCardViewModel) {
+fun ScanTab(
+    uiState: NfcUiState,
+    viewModel: NfcCardViewModel,
+    isHideSensitiveInfo: Boolean,
+    onRequestAuth: (String, () -> Unit) -> Unit
+) {
     var showTechnicalDetails by remember { mutableStateOf(false) }
     var showSaveDialog by remember { mutableStateOf(false) }
 
@@ -95,7 +129,7 @@ fun ScanTab(uiState: NfcUiState, viewModel: NfcCardViewModel) {
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         WalletCard(cardInfo = uiState.cardInfo)
-                        
+
                         Spacer(modifier = Modifier.height(32.dp))
 
                         InfoChipList(
@@ -106,7 +140,7 @@ fun ScanTab(uiState: NfcUiState, viewModel: NfcCardViewModel) {
                         )
 
                         Spacer(modifier = Modifier.weight(1f))
-                        
+
                         Button(
                             onClick = { showSaveDialog = true },
                             modifier = Modifier
@@ -136,17 +170,19 @@ fun ScanTab(uiState: NfcUiState, viewModel: NfcCardViewModel) {
                                 fontWeight = FontWeight.Bold
                             )
                         }
-                        
+
                         Spacer(modifier = Modifier.height(24.dp))
                     }
 
                     if (showTechnicalDetails) {
                         TechnicalDetailsSheet(
                             cardInfo = uiState.cardInfo,
-                            onDismiss = { showTechnicalDetails = false }
+                            isHideSensitiveInfo = isHideSensitiveInfo,
+                            onDismiss = { showTechnicalDetails = false },
+                            onRequestAuth = onRequestAuth
                         )
                     }
-                    
+
                     if (showSaveDialog) {
                         var cardName by remember { mutableStateOf("") }
                         AlertDialog(
