@@ -5,14 +5,15 @@ import androidx.room.Delete
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Update
 import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface NfcCardDao {
-    @Query("SELECT * FROM nfc_cards ORDER BY createdAt DESC")
+    @Query("SELECT * FROM nfc_cards ORDER BY isFavorite DESC, createdAt DESC")
     fun getAllCards(): Flow<List<NfcCardEntity>>
 
-    @Query("SELECT * FROM nfc_cards ORDER BY createdAt DESC")
+    @Query("SELECT * FROM nfc_cards ORDER BY isFavorite DESC, createdAt DESC")
     fun getAllCardsSync(): List<NfcCardEntity>
 
     @Query("SELECT * FROM nfc_cards WHERE uid = :uid LIMIT 1")
@@ -20,6 +21,9 @@ interface NfcCardDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     fun insertCard(card: NfcCardEntity)
+
+    @Update
+    fun updateCard(card: NfcCardEntity)
 
     @Delete
     fun deleteCard(card: NfcCardEntity)

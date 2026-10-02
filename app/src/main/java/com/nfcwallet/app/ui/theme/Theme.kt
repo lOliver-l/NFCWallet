@@ -1,51 +1,62 @@
 package com.nfcwallet.app.ui.theme
 
-import android.app.Activity
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.dynamicDarkColorScheme
-import androidx.compose.material3.dynamicLightColorScheme
-import androidx.compose.material3.lightColorScheme
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 
 private val DarkColorScheme = darkColorScheme(
-    primary = Purple80,
-    secondary = PurpleGrey80,
-    tertiary = Pink80
+    primary = iOSSystemBlue,
+    onPrimary = Color.White,
+    primaryContainer = iOSTertiaryGroupedDark,
+    onPrimaryContainer = Color.White,
+    secondary = iOSSystemIndigo,
+    onSecondary = Color.White,
+    tertiary = iOSSystemOrange,
+    background = iOSSystemBlack,
+    surface = iOSSecondaryGroupedDark,
+    surfaceVariant = iOSTertiaryGroupedDark,
+    outlineVariant = iOSBorderDark,
+    onBackground = Color(0xFFFFFFFF),
+    onSurface = Color(0xFFFFFFFF),
+    onSurfaceVariant = Color(0xFF8E8E93)
 )
 
 private val LightColorScheme = lightColorScheme(
-    primary = Purple40,
-    secondary = PurpleGrey40,
-    tertiary = Pink40
-
-    /* Other default colors to override
-    background = Color(0xFFFFFBFE),
-    surface = Color(0xFFFFFBFE),
+    primary = iOSSystemBlue,
     onPrimary = Color.White,
+    primaryContainer = Color(0xFFE5E5EA),
+    onPrimaryContainer = iOSLightOnSurface,
+    secondary = iOSSystemIndigo,
     onSecondary = Color.White,
-    onTertiary = Color.White,
-    onBackground = Color(0xFF1C1B1F),
-    onSurface = Color(0xFF1C1B1F),
-    */
+    tertiary = iOSSystemOrange,
+    background = iOSLightBackground,
+    surface = iOSLightSurface,
+    surfaceVariant = iOSLightSurfaceVariant,
+    onBackground = iOSLightOnSurface,
+    onSurface = iOSLightOnSurface,
+    onSurfaceVariant = Color(0xFF8E8E93)
 )
 
 @Composable
 fun NFCWalletTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
-    // Dynamic color is available on Android 12+
-    dynamicColor: Boolean = true,
+    themeMode: String = "system",
+    dynamicColor: Boolean = false,
     content: @Composable () -> Unit
 ) {
+    val darkTheme = when (themeMode) {
+        "light" -> false
+        "dark" -> true
+        else -> isSystemInDarkTheme()
+    }
+
     val colorScheme = when {
         dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
             val context = LocalContext.current
             if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
         }
-
         darkTheme -> DarkColorScheme
         else -> LightColorScheme
     }
@@ -53,6 +64,7 @@ fun NFCWalletTheme(
     MaterialTheme(
         colorScheme = colorScheme,
         typography = Typography,
+        shapes = AppShapes,
         content = content
     )
 }

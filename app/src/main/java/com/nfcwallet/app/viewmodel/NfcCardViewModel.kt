@@ -7,6 +7,7 @@ import com.nfcwallet.app.data.local.NfcCardEntity
 import com.nfcwallet.app.data.mapper.toEntity
 import com.nfcwallet.app.data.repository.NfcCardRepository
 import com.nfcwallet.app.nfc.model.NfcCardInfo
+import com.nfcwallet.app.nfc.utils.SoundEffectsManager
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asSharedFlow
@@ -24,21 +25,44 @@ class NfcCardViewModel(private val repository: NfcCardRepository) : ViewModel() 
     private val _events = MutableSharedFlow<String>()
     val events = _events.asSharedFlow()
 
-    fun saveCard(cardInfo: NfcCardInfo, name: String) {
+    fun saveCard(
+        cardInfo: NfcCardInfo,
+        name: String,
+        category: String = "Other",
+        iconName: String = "card",
+        colorHex: String = "blue",
+        isFavorite: Boolean = false
+    ) {
         viewModelScope.launch {
-            val entity = cardInfo.toEntity(name)
+            val entity = cardInfo.toEntity(
+                name = name,
+                category = category,
+                iconName = iconName,
+                colorHex = colorHex,
+                isFavorite = isFavorite
+            )
             val success = repository.saveCard(entity)
             if (!success) {
                 _events.emit("This card is already saved")
             } else {
+                SoundEffectsManager.playSuccessBeep()
                 _events.emit("Card saved successfully")
             }
+        }
+    }
+
+    fun updateCardEntity(cardEntity: NfcCardEntity) {
+        viewModelScope.launch {
+            repository.updateCard(cardEntity)
+            SoundEffectsManager.playSuccessBeep()
+            _events.emit("Card updated successfully")
         }
     }
 
     fun deleteCard(cardEntity: NfcCardEntity) {
         viewModelScope.launch {
             repository.deleteCard(cardEntity)
+            _events.emit("Card deleted")
         }
     }
 }

@@ -30,6 +30,7 @@ class MainActivity : FragmentActivity() {
     private var nfcUiState by mutableStateOf<NfcUiState>(NfcUiState.Checking)
     private var isAppLocked by mutableStateOf(false)
     private var lockErrorMessage by mutableStateOf<String?>(null)
+    private var currentThemeMode by mutableStateOf("system")
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -37,6 +38,7 @@ class MainActivity : FragmentActivity() {
 
         securityPreferences = SecurityPreferences(this)
         biometricAuthManager = BiometricAuthManager(this)
+        currentThemeMode = securityPreferences.themeMode
 
         val database = NfcDatabase.getDatabase(applicationContext)
         val repository = NfcCardRepository(database.nfcCardDao())
@@ -50,14 +52,12 @@ class MainActivity : FragmentActivity() {
             }
         }
 
-        // Lock app on launch if requirement is toggled on
         if (securityPreferences.isAuthRequired) {
             isAppLocked = true
-            promptUnlock()
         }
 
         setContent {
-            NFCWalletTheme {
+            NFCWalletTheme(themeMode = currentThemeMode) {
                 if (isAppLocked) {
                     LockScreen(
                         errorMessage = lockErrorMessage,
@@ -78,6 +78,9 @@ class MainActivity : FragmentActivity() {
                                     lockErrorMessage = error
                                 }
                             )
+                        },
+                        onThemeChanged = { newThemeMode ->
+                            currentThemeMode = newThemeMode
                         }
                     )
                 }

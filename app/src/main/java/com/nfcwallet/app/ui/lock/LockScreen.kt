@@ -1,19 +1,25 @@
 package com.nfcwallet.app.ui.lock
 
-import androidx.compose.foundation.background
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.nfcwallet.app.R
+import com.nfcwallet.app.ui.components.GlassSurface
+import com.nfcwallet.app.ui.components.PillButton
 
-// Modern lock screen displayed when biometric protection is enabled
+// Ultra-minimalist, sleek biometric lock screen
 @Composable
 fun LockScreen(
     errorMessage: String?,
@@ -28,63 +34,70 @@ fun LockScreen(
                 .fillMaxSize()
                 .padding(32.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+            verticalArrangement = Arrangement.SpaceBetween
         ) {
-            Box(
-                modifier = Modifier
-                    .size(100.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.primaryContainer),
-                contentAlignment = Alignment.Center
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // Main Lock Center Logo
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Text(
-                    text = "🔒",
-                    style = MaterialTheme.typography.headlineLarge
+                Image(
+                    painter = painterResource(id = R.drawable.app_logo),
+                    contentDescription = "NFC Wallet Logo",
+                    modifier = Modifier
+                        .size(120.dp)
+                        .clip(CircleShape)
                 )
-            }
 
-            Spacer(modifier = Modifier.height(32.dp))
+                Spacer(modifier = Modifier.height(32.dp))
 
-            Text(
-                text = "NFC Wallet",
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onBackground
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Text(
-                text = "Your cards are protected",
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-
-            if (!errorMessage.isNullOrBlank()) {
-                Spacer(modifier = Modifier.height(16.dp))
                 Text(
-                    text = errorMessage,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.error,
+                    text = "NFC Wallet",
+                    style = MaterialTheme.typography.headlineLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onBackground
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Text(
+                    text = "Your cards & passes are protected",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center
                 )
+
+                AnimatedVisibility(
+                    visible = !errorMessage.isNullOrBlank(),
+                    enter = fadeIn(),
+                    exit = fadeOut()
+                ) {
+                    if (!errorMessage.isNullOrBlank()) {
+                        Spacer(modifier = Modifier.height(20.dp))
+                        GlassSurface(
+                            backgroundColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.8f)
+                        ) {
+                            Text(
+                                text = errorMessage,
+                                modifier = Modifier.padding(horizontal = 20.dp, vertical = 10.dp),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onErrorContainer,
+                                textAlign = TextAlign.Center
+                            )
+                        }
+                    }
+                }
             }
 
-            Spacer(modifier = Modifier.height(48.dp))
-
-            Button(
+            // Bottom Unlock Pill Action
+            PillButton(
+                text = "Unlock Wallet",
                 onClick = onUnlockClick,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(56.dp),
-                shape = RoundedCornerShape(16.dp)
-            ) {
-                Text(
-                    text = "Unlock",
-                    style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.Bold
-                )
-            }
+                    .height(56.dp)
+            )
         }
     }
 }

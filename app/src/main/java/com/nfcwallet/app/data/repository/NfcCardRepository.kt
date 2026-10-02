@@ -24,15 +24,24 @@ class NfcCardRepository(
     suspend fun saveCard(card: NfcCardEntity): Boolean = withContext(Dispatchers.IO) {
         val allCards = dao.getAllCardsSync()
         val duplicate = allCards.any { existing ->
-            cryptoManager.decrypt(existing.uid) == card.uid
+            cryptoManager.decrypt(existing.uid) == card.uid && existing.id != card.id
         }
         if (duplicate) {
             return@withContext false
         }
 
         val encryptedEntity = encryptEntity(card)
-        dao.insertCard(encryptedEntity)
+        if (card.id > 0) {
+            dao.updateCard(encryptedEntity)
+        } else {
+            dao.insertCard(encryptedEntity)
+        }
         return@withContext true
+    }
+
+    suspend fun updateCard(card: NfcCardEntity) = withContext(Dispatchers.IO) {
+        val encryptedEntity = encryptEntity(card)
+        dao.updateCard(encryptedEntity)
     }
 
     suspend fun deleteCard(card: NfcCardEntity) = withContext(Dispatchers.IO) {
